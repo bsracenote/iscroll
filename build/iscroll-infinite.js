@@ -1533,8 +1533,14 @@ IScroll.prototype = {
 		this.infiniteElementHeight = utils.getRect(this.infiniteMaster).height;
 		this.infiniteHeight = this.infiniteLength * this.infiniteElementHeight;
 
+		this.loading = false;
+		this.phaseShift = 0;
+		// Expect a passed renderLoading message.
+
+		this.options.momentum = false;
+
 		this.options.cacheSize = this.options.cacheSize || 1000;
-		this.scrollLimit = this.options.cacheSize;
+		this.scrollLimit = this.options.cacheSize + 1;
 		// Allow user to pass in infiniteCacheBuffer
 		this.infiniteCacheBuffer = this.options.infiniteCacheBuffer || Math.round(this.options.cacheSize / 4);
 		// Setup infiniteCache here instead of resetting on each call.
@@ -1593,7 +1599,8 @@ IScroll.prototype = {
 			i++;
 		}
 
-		if ( this.cachePhase != cachePhase && (cachePhase === 0 || minorPhase - this.infiniteCacheBuffer > 0) ) {
+		if (this.cachePhase != cachePhase && (cachePhase === 0 || minorPhase - this.infiniteCacheBuffer > 0) ) {
+			this.loading = true;
 			this.options.dataset.call(this, Math.max(cachePhase * this.infiniteCacheBuffer - this.infiniteCacheBuffer, 0), this.options.cacheSize);
 		}
 
@@ -1603,13 +1610,22 @@ IScroll.prototype = {
 	},
 
 	updateContent: function (els) {
-		if ( this.infiniteCache === undefined ) {
+		// console.log('scrollLimit: ' + this.scrollLimit + ', cacheLength: ' + Object.keys(this.infiniteCache).length);
+		if (this.infiniteCache === undefined) {
 			return;
 		}
 
-		for ( var i = 0, l = els.length; i < l; i++ ) {
-			this.options.dataFiller.call(this, els[i], this.infiniteCache[els[i]._phase]);
+		for (var i = 0, l = els.length; i < l; i++) {
+			if (els[i]._phase < this.scrollLimit) {
+				if (this.infiniteCache[els[i]._phase] !== undefined && (els[i]._phase !== this.scrollLimit - 1 || this.scrollLimit === this.options.infiniteLimit)) {
+					this.options.dataFiller.call(this, els[i], this.infiniteCache[els[i]._phase]);
+				} else if (this.loading && els[i]._phase === this.scrollLimit - 1) {
+					this.phaseShift = -1;
+					this.options.renderLoading.call(this, els[i], {'loading': true});
+				}
+			}
 		}
+
 	},
 
 	updateCache: function (start, data) {
@@ -1617,22 +1633,34 @@ IScroll.prototype = {
 		var cacheSize = Object.keys(this.infiniteCache).length;
 		var firstRun = (cacheSize === 0);
 		var lastRun = (cacheSize >= this.options.infiniteLimit && this.scrollLimit !== this.options.infiniteLimit);
+		var update = false;
+
+		if (cacheSize > this.scrollLimit) {
+			start += this.phaseShift;
+			this.phaseShift = 0;
+			update = true;
+		}
 
 		for (var i = 0, l = data.length; i < l; i++) {
 			this.infiniteCache[start++] = data[i];
 		}
 
-		if (firstRun || lastRun) {
-			this.updateContent(this.infiniteElements);
-		}
+		// if (firstRun || lastRun) {
+		// 	this.updateContent(this.infiniteElements);
+		// }
 
 		if (cacheSize > 0 && cacheSize < this.options.cacheSize) {
 			// If we have less elements than the cacheSize, fix the scrollLimit so we don't overscroll.
 			this.scrollLimit = cacheSize;
-		} else if (cacheSize > this.options.infiniteLimit) {
+		} else if (cacheSize >= this.options.infiniteLimit) {
 			this.scrollLimit = this.options.infiniteLimit;
-		} else {
-			this.scrollLimit = (this.scrollLimit > cacheSize) ? this.scrollLimit : cacheSize;
+		} else if (cacheSize > this.scrollLimit) {
+			this.scrollLimit = cacheSize + 1;
+			this.loading = false;
+		}
+
+		if (firstRun || lastRun || update) {
+			this.updateContent(this.infiniteElements);
 		}
 
 		if (this.options.infiniteElements) {
