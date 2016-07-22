@@ -9,7 +9,13 @@
 		this.infiniteHeight = this.infiniteLength * this.infiniteElementHeight;
 
 		this.options.cacheSize = this.options.cacheSize || 1000;
-		this.infiniteCacheBuffer = Math.round(this.options.cacheSize / 4);
+		this.scrollLimit = this.options.cacheSize;
+		// Allow user to pass in infiniteCacheBuffer
+		this.infiniteCacheBuffer = this.options.infiniteCacheBuffer || Math.round(this.options.cacheSize / 4);
+		// Setup infiniteCache here instead of resetting on each call.
+		this.infiniteCache = {};
+		this.options.infiniteLimit = this.options.infiniteLimit || Math.floor(2147483645 / this.infiniteElementHeight);
+
 
 		//this.infiniteCache = {};
 		this.options.dataset.call(this, 0, this.options.cacheSize);
@@ -82,17 +88,34 @@
 	},
 
 	updateCache: function (start, data) {
-		var firstRun = this.infiniteCache === undefined;
+		var limit;
+		var cacheSize = Object.keys(this.infiniteCache).length;
+		var firstRun = (cacheSize === 0);
+		var lastRun = (cacheSize >= this.options.infiniteLimit && this.scrollLimit !== this.options.infiniteLimit);
 
-		this.infiniteCache = {};
-
-		for ( var i = 0, l = data.length; i < l; i++ ) {
+		for (var i = 0, l = data.length; i < l; i++) {
 			this.infiniteCache[start++] = data[i];
 		}
 
-		if ( firstRun ) {
+		if (firstRun || lastRun) {
 			this.updateContent(this.infiniteElements);
 		}
 
-	},
+		if (cacheSize > 0 && cacheSize < this.options.cacheSize) {
+			// If we have less elements than the cacheSize, fix the scrollLimit so we don't overscroll.
+			this.scrollLimit = cacheSize;
+		} else if (cacheSize > this.options.infiniteLimit) {
+			this.scrollLimit = this.options.infiniteLimit;
+		} else {
+			this.scrollLimit = (this.scrollLimit > cacheSize) ? this.scrollLimit : cacheSize;
+		}
 
+		if (this.options.infiniteElements) {
+			limit = -this.scrollLimit * this.infiniteElementHeight + this.wrapperHeight;
+		}
+
+		// console.log('cacheSize: ' + cacheSize + ', scrollLimit: ' + this.scrollLimit + ', infiniteLimit: ' + this.options.infiniteLimit);
+
+		this.maxScrollY		= limit !== undefined ? limit : this.wrapperHeight - this.scrollerHeight;
+
+	},
