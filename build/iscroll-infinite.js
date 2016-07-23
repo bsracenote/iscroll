@@ -1537,8 +1537,6 @@ IScroll.prototype = {
 		this.phaseShift = 0;
 		// Expect a passed renderLoading message.
 
-		this.options.momentum = false;
-
 		this.options.cacheSize = this.options.cacheSize || 1000;
 		this.scrollLimit = this.options.cacheSize + 1;
 		// Allow user to pass in infiniteCacheBuffer
@@ -1575,19 +1573,19 @@ IScroll.prototype = {
 		//var cachePhase = Math.floor((minorPhase + this.infiniteLength / 2) / this.infiniteCacheBuffer);
 		var cachePhase = Math.floor(minorPhase / this.infiniteCacheBuffer);
 
-		while ( i < this.infiniteLength ) {
+		while (i < this.infiniteLength) {
 			top = i * this.infiniteElementHeight + majorPhase * this.infiniteHeight;
 
-			if ( phase > i ) {
+			if (phase > i) {
 				top += this.infiniteElementHeight * this.infiniteLength;
 			}
 
-			if ( this.infiniteElements[i]._top !== top ) {
+			if (this.infiniteElements[i]._top !== top) {
 				this.infiniteElements[i]._phase = top / this.infiniteElementHeight;
 
-				if ( this.infiniteElements[i]._phase < this.options.infiniteLimit ) {
+				if (this.infiniteElements[i]._phase < this.options.infiniteLimit) {
 					this.infiniteElements[i]._top = top;
-					if ( this.options.infiniteUseTransform ) {
+					if (this.options.infiniteUseTransform ) {
 						this.infiniteElements[i].style[utils.style.transform] = 'translate(0, ' + top + 'px)' + this.translateZ;
 					} else {
 						this.infiniteElements[i].style.top = top + 'px';
@@ -1629,7 +1627,7 @@ IScroll.prototype = {
 	},
 
 	updateCache: function (start, data) {
-		var limit;
+		var limit = 0;
 		var cacheSize = Object.keys(this.infiniteCache).length;
 		var firstRun = (cacheSize === 0);
 		var lastRun = (cacheSize >= this.options.infiniteLimit && this.scrollLimit !== this.options.infiniteLimit);
@@ -1644,10 +1642,6 @@ IScroll.prototype = {
 		for (var i = 0, l = data.length; i < l; i++) {
 			this.infiniteCache[start++] = data[i];
 		}
-
-		// if (firstRun || lastRun) {
-		// 	this.updateContent(this.infiniteElements);
-		// }
 
 		if (cacheSize > 0 && cacheSize < this.options.cacheSize) {
 			// If we have less elements than the cacheSize, fix the scrollLimit so we don't overscroll.
@@ -1667,9 +1661,8 @@ IScroll.prototype = {
 			limit = -this.scrollLimit * this.infiniteElementHeight + this.wrapperHeight;
 		}
 
-		// console.log('cacheSize: ' + cacheSize + ', scrollLimit: ' + this.scrollLimit + ', infiniteLimit: ' + this.options.infiniteLimit);
 
-		this.maxScrollY		= limit !== undefined ? limit : this.wrapperHeight - this.scrollerHeight;
+		this.maxScrollY		= limit < 0 ? limit : 0;
 
 	},
 
